@@ -32,7 +32,7 @@ The evaluation is where I learned the most. I wrote 63 questions alongside the p
 
 | set | first run | after fixing |
 |---|---|---|
-| 63 written with the code | 58 | 63 (tuned on these) |
+| 62 written with the code | 58 | 63 (tuned on these) |
 | 20 phrased like a colleague | 7 | 20 (no longer unseen) |
 | 12 written afterwards, never tuned on | 7 | 10 |
 
