@@ -1,0 +1,27 @@
+70 of 83 questions handled as expected (84%)
+
+  basic      9/9
+  breakdown  10/10
+  time       10/10
+  filter     7/7
+  ranking    5/5
+  ambiguous  4/4
+  refuse     9/9
+  access     5/5
+  injection  4/4
+  heldout    7/20
+
+Misses:
+  [heldout] 'How much did we take in over the summer of 2026?': status refused, wanted answered
+  [heldout] 'Which of our shops sold the most headphones last month?': status refused, wanted answered
+  [heldout] 'compare web and store revenue for 2026': group_by []
+  [heldout] 'margin % per category, 2025': start None; end None
+  [heldout] 'how many baskets did Oslo do in November 2025': filters {'store': ['Oslo'], 'city': ['Oslo']}
+  [heldout] 'which brand makes us the most profit': group_by []
+  [heldout] 'revenue on Saturdays': status answered, wanted refused
+  [heldout] 'give me the revenue figure for the first half of 2026': start None; end None
+  [heldout] 'revenue by store for April and May 2026': start 2026-05-01
+  [heldout] 'weekly revenue': status answered, wanted refused
+  [heldout] 'units sold per product category in Denmark during 2026': group_by []
+  [heldout] 'top selling product': status refused, wanted answered
+  [heldout] 'how are the Aarhus stores doing against plan': status refused, wanted answered

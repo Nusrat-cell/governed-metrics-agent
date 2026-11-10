@@ -1,0 +1,54 @@
+# The only place a number gets its meaning. The agent cannot compute anything that is not defined here.
+fact: fact_sales
+metrics:
+  revenue:
+    sql: SUM(f.net_amount_dkk)
+    text: Net sales in DKK, excluding VAT, after returns
+    synonyms: [revenue, turnover, net sales]
+    format: dkk
+  units:
+    sql: SUM(f.qty)
+    text: Units sold, returns subtracted
+    synonyms: [units, quantity, pieces, items sold, sold, sell]
+    format: int
+  margin:
+    sql: SUM(f.net_amount_dkk - f.cost_dkk)
+    text: Net sales minus cost of goods, in DKK
+    synonyms: [margin, gross profit, profit]
+    format: dkk
+  margin_pct:
+    sql: 100.0 * SUM(f.net_amount_dkk - f.cost_dkk) / NULLIF(SUM(f.net_amount_dkk), 0)
+    text: Margin as a percentage of net sales
+    synonyms: [margin percent, margin pct, margin %, gross margin]
+    format: pct
+  orders:
+    sql: COUNT(DISTINCT f.order_id)
+    text: Distinct orders, a basket with five items counts once
+    synonyms: [orders, baskets, transactions]
+    format: int
+  aov:
+    sql: SUM(f.net_amount_dkk) / NULLIF(COUNT(DISTINCT f.order_id), 0)
+    text: Net sales per order in DKK
+    synonyms: [average order value, aov, basket size, average basket]
+    format: dkk
+  target_attainment:
+    special: target
+    text: Net sales divided by the sales target, per store and month
+    synonyms: [target attainment, vs target, against target, target, against plan, vs plan, versus plan, hitting target, hit target]
+    format: pct
+ambiguous:
+  sales: [revenue, units]
+  performance: [revenue, margin_pct, target_attainment]
+dimensions:
+  store:    {sql: s.name,        join: dim_store}
+  city:     {sql: s.city,        join: dim_store}
+  country:  {sql: s.country,     join: dim_store}
+  region:   {sql: s.region,      join: dim_store}
+  category: {sql: p.category,    join: dim_product}
+  brand:    {sql: p.brand,       join: dim_product}
+  product:  {sql: p.name,        join: dim_product}
+  channel:  {sql: f.channel}
+  month:    {sql: d.month_label, join: dim_date}
+  quarter:  {sql: d.quarter_label, join: dim_date}
+  year:     {sql: CAST(d.year AS TEXT), join: dim_date}
+  weekday:  {sql: d.weekday,     join: dim_date}
