@@ -214,3 +214,27 @@ def test_every_question_is_logged_without_the_answer_rows(db, layer, admin, tmp_
 
 def test_overlong_or_empty_questions_are_refused(agent, admin):
     assert agent.ask("", admin).status == "refused" and agent.ask("revenue" + "x" * 600, admin).status == "refused"
+
+
+def test_the_agent_can_be_used_from_several_threads(db, layer):
+    import threading
+    ag = Agent(db, layer, RulePlanner(layer, db))
+    out, errors = [], []
+
+    def work(n):
+        try:
+            out.append(ag.ask(f"revenue by category in Q{n % 4 + 1} 2026", User("a", "admin")).status)
+        except Exception as e:                        # sqlite refuses a connection used from another thread
+            errors.append(e)
+    ts = [threading.Thread(target=work, args=(i,)) for i in range(12)]
+    [t.start() for t in ts]; [t.join() for t in ts]
+    assert not errors and out == ["answered"] * 12
+
+
+def test_an_error_logs_its_real_cause_but_shows_the_user_nothing_internal(db, layer, admin, tmp_path):
+    log = tmp_path / "e.jsonl"
+    broken = Agent(db, layer, RulePlanner(layer, db), log_path=str(log))
+    broken.db = type("Boom", (), {"execute": lambda *a, **k: (_ for _ in ()).throw(RuntimeError("disk gone"))})()
+    a = broken.ask("revenue", admin)
+    assert a.status == "error" and "disk gone" not in a.text
+    assert "disk gone" in json.loads(log.read_text())["detail"]

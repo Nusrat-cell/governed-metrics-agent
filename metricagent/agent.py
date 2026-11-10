@@ -1,6 +1,7 @@
 """Question in, answer out. Every step is logged, and every answer says how it was worked out."""
 import json
 import os
+import threading
 import time
 from dataclasses import dataclass, field
 
@@ -18,6 +19,7 @@ class Answer:
     caveats: list = field(default_factory=list)
     options: tuple = ()
     ms: float = 0.0
+    detail: str = ""            # the real cause of an error, for the log only
 
 
 def fmt(value, kind):
@@ -33,10 +35,12 @@ def fmt(value, kind):
 class Agent:
     def __init__(self, db, layer, planner, log_path=None):
         self.db, self.layer, self.planner, self.log_path = db, layer, planner, log_path
+        self.lock = threading.RLock()              # one connection is shared by every web session
 
     def ask(self, question, user):
         t0 = time.perf_counter()
-        ans = self._ask(question, user)
+        with self.lock:                               # the planner, access check and queries all share one connection
+            ans = self._ask(question, user)
         ans.ms = round((time.perf_counter() - t0) * 1000, 1)
         self._log(question, user, ans)
         return ans
@@ -56,9 +60,10 @@ class Agent:
         except Rejected as e:
             return Answer("refused", str(e), spec=plan.spec)
         try:
-            rows = self.db.execute(sql, params).fetchall()
+            with self.lock:
+                rows = self.db.execute(sql, params).fetchall()
         except Exception as e:                                   # a bug of ours, never shown raw to the user
-            return Answer("error", "I could not run that query. It has been logged.", sql=sql, spec=spec)
+            return Answer("error", "I could not run that query. It has been logged.", sql=sql, spec=spec, detail=f"{type(e).__name__}: {e}")
         caveats = self._caveats(spec, rows)
         m = self.layer.metrics[spec.metric]
         if not rows or (len(spec.group_by) == 0 and rows[0][-1] is None):
@@ -87,8 +92,9 @@ class Agent:
             if spec.end: where += " AND f.date <= ?"; p.append(spec.end)
             if spec.store_ids is not None:
                 where += f" AND f.store_id IN ({','.join('?' * len(spec.store_ids))})"; p += spec.store_ids
-            tot, carried = db.execute("SELECT SUM(f.net_amount_dkk), SUM(CASE WHEN f.fx_carried=1 THEN f.net_amount_dkk ELSE 0 END) "
-                                      "FROM fact_sales f WHERE 1=1" + where, p).fetchone()
+            with self.lock:
+                tot, carried = db.execute("SELECT SUM(f.net_amount_dkk), SUM(CASE WHEN f.fx_carried=1 THEN f.net_amount_dkk ELSE 0 END) "
+                                          "FROM fact_sales f WHERE 1=1" + where, p).fetchone()
             if tot and carried / tot > 0.05:
                 out.append(f"{100 * carried / tot:.0f}% of this revenue was converted with the last published exchange rate, because weekends have none.")
         if spec.metric in ("revenue", "units", "margin", "orders") and spec.store_ids is None:
@@ -103,7 +109,7 @@ class Agent:
             return
         rec = {"ts": time.strftime("%Y-%m-%dT%H:%M:%S"), "user": user.name, "role": user.role, "question": question[:500],
                "status": ans.status, "metric": getattr(ans.spec, "metric", None), "ms": ans.ms, "rows": len(ans.rows),
-               "reason": ans.text if ans.status in ("refused", "error", "clarify") else ""}
+               "reason": ans.text if ans.status in ("refused", "error", "clarify") else "", "detail": ans.detail}
         os.makedirs(os.path.dirname(self.log_path) or ".", exist_ok=True)
         with open(self.log_path, "a", encoding="utf-8") as f:
             f.write(json.dumps(rec, ensure_ascii=False) + "\n")

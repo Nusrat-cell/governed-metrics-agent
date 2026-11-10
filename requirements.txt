@@ -1,2 +1,4 @@
 pyyaml
+streamlit
+pandas
 pytest

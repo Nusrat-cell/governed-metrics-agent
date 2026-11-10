@@ -34,7 +34,7 @@ CREATE INDEX ix_f_date ON fact_sales(date); CREATE INDEX ix_f_store ON fact_sale
 
 def build(path=":memory:", seed=7, start=date(2025, 1, 1), end=date(2026, 10, 31)):
     rnd = random.Random(seed)
-    db = sqlite3.connect(path)
+    db = sqlite3.connect(path, check_same_thread=False)   # the web app serves each session from its own thread
     db.executescript(SCHEMA)
     db.executemany("INSERT INTO dim_store VALUES(?,?,?,?,?)", STORES)
     products = []
